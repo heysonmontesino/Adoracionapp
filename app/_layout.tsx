@@ -2,6 +2,7 @@ import '../global.css'
 import { useEffect } from 'react'
 import { Stack, useRouter, useSegments } from 'expo-router'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { useFonts } from 'expo-font'
 import * as SplashScreen from 'expo-splash-screen'
 import { useAuthStore } from '../src/features/auth/store'
 import {
@@ -40,13 +41,19 @@ function RootNavigator() {
 export default function RootLayout() {
   const { setUser, setLoading } = useAuthStore()
 
-  // TODO Task 13: Load custom fonts here after font files are placed in assets/fonts/
-  // useFonts({ 'HUMANE-Bold': require('../assets/fonts/HUMANE-Bold.otf'), ... })
+  // TODO: Add 'HUMANE-Bold': require('../assets/fonts/HUMANE-Bold.otf') once the file is placed
+  const [fontsLoaded, fontError] = useFonts({
+    'PlusJakartaSans-Light':     require('../assets/fonts/PlusJakartaSans-Light.ttf'),
+    'PlusJakartaSans-Regular':   require('../assets/fonts/PlusJakartaSans-Regular.ttf'),
+    'PlusJakartaSans-Medium':    require('../assets/fonts/PlusJakartaSans-Medium.ttf'),
+    'PlusJakartaSans-SemiBold':  require('../assets/fonts/PlusJakartaSans-SemiBold.ttf'),
+    'PlusJakartaSans-Bold':      require('../assets/fonts/PlusJakartaSans-Bold.ttf'),
+    'PlusJakartaSans-ExtraBold': require('../assets/fonts/PlusJakartaSans-ExtraBold.ttf'),
+  })
 
   useEffect(() => {
-    // Hide splash immediately until fonts are loaded in Task 13
-    SplashScreen.hideAsync()
-  }, [])
+    if (fontsLoaded || fontError) SplashScreen.hideAsync()
+  }, [fontsLoaded, fontError])
 
   useEffect(() => {
     initGoogleSignIn()
@@ -67,6 +74,9 @@ export default function RootLayout() {
     })
     return unsubscribe
   }, [])
+
+  // All hooks called above — safe to return null before render
+  if (!fontsLoaded && !fontError) return null
 
   return (
     <QueryClientProvider client={queryClient}>
