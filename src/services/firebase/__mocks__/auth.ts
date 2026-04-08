@@ -1,0 +1,6 @@
+export const signInWithGoogle = jest.fn()
+export const signInWithEmail = jest.fn()
+export const registerWithEmail = jest.fn()
+export const signOut = jest.fn()
+export const onAuthStateChanged = jest.fn()
+export const initGoogleSignIn = jest.fn()
