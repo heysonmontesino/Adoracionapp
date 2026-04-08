@@ -10,44 +10,46 @@ import {
 import { useRouter } from 'expo-router'
 import { Screen } from '../../src/shared/components/layout/Screen'
 import { Button } from '../../src/shared/components/ui/Button'
-import { useAuthStore } from '../../src/features/auth/store'
-import {
-  registerWithEmail,
-  getOrCreateUserDoc,
-} from '../../src/features/auth/repository'
+import { useToast } from '../../src/shared/components/feedback/Toast'
+import { useAuthActions } from '../../src/features/auth/hooks/useAuthActions'
 import { Colors } from '../../src/shared/constants/colors'
 
 export default function RegisterScreen() {
   const router = useRouter()
-  const { setUser } = useAuthStore()
+  const { registerAccount, isSubmitting } = useAuthActions()
+  const { showToast } = useToast()
+  const [displayName, setDisplayName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   async function handleRegister() {
+    if (!displayName.trim()) {
+      showToast({ message: 'Ingresa tu nombre.', tone: 'error' })
+      return
+    }
     if (!email.trim() || !password) {
-      setError('Ingresa tu correo y contraseña')
+      showToast({ message: 'Ingresa tu correo y contraseña.', tone: 'error' })
       return
     }
     if (password.length < 6) {
-      setError('La contraseña debe tener al menos 6 caracteres')
+      showToast({
+        message: 'La contraseña debe tener al menos 6 caracteres.',
+        tone: 'error',
+      })
       return
     }
-    setIsLoading(true)
-    setError(null)
-    try {
-      const firebaseUser = await registerWithEmail(email.trim(), password)
-      const appUser = await getOrCreateUserDoc(firebaseUser)
-      setUser(appUser)
-    } catch (e: any) {
-      if (e?.code === 'auth/email-already-in-use') {
-        setError('Este correo ya está registrado')
+
+    const result = await registerAccount(displayName, email.trim(), password)
+
+    if (!result.ok) {
+      if (result.code === 'auth/email-already-in-use') {
+        showToast({ message: 'Este correo ya está registrado.', tone: 'error' })
       } else {
-        setError('No se pudo crear la cuenta. Intenta de nuevo.')
+        showToast({
+          message: 'No se pudo crear y guardar la cuenta. Intenta de nuevo.',
+          tone: 'error',
+        })
       }
-    } finally {
-      setIsLoading(false)
     }
   }
 
@@ -65,12 +67,14 @@ export default function RegisterScreen() {
             Únete a la familia de fe
           </Text>
 
-          {error !== null && (
-            <Text className="text-red-400 font-jakarta-regular text-sm mb-4">
-              {error}
-            </Text>
-          )}
-
+          <TextInput
+            className="bg-surface-container-low rounded-xl px-4 py-3 text-on-surface font-jakarta-regular mb-3"
+            placeholder="Nombre"
+            placeholderTextColor={Colors.onSurface60}
+            value={displayName}
+            onChangeText={setDisplayName}
+            textContentType="name"
+          />
           <TextInput
             className="bg-surface-container-low rounded-xl px-4 py-3 text-on-surface font-jakarta-regular mb-3"
             placeholder="Correo electrónico"
@@ -94,7 +98,7 @@ export default function RegisterScreen() {
           <Button
             label="Crear cuenta"
             onPress={handleRegister}
-            isLoading={isLoading}
+            isLoading={isSubmitting}
           />
 
           <TouchableOpacity

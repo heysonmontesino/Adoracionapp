@@ -1,16 +1,20 @@
 import {
+  initGoogleSignIn,
+  isGoogleSignInConfigured,
   signInWithGoogle,
   signInWithEmail,
   registerWithEmail,
+  updateAuthDisplayName,
   signOut,
   onAuthStateChanged,
 } from '../../services/firebase/auth'
 import {
   getDocument,
   setDocument,
+  Timestamp,
   updateDocument,
 } from '../../services/firebase/firestore'
-import { AppUser } from './types'
+import { AppUser, CharacterProfile, SpiritualProgress } from './types'
 import { User } from 'firebase/auth'
 
 function userDocPath(uid: string): string {
@@ -21,44 +25,82 @@ export async function fetchUserDoc(uid: string): Promise<AppUser | null> {
   return getDocument<AppUser>(userDocPath(uid))
 }
 
-export async function createUserDoc(firebaseUser: User): Promise<AppUser> {
-  const now = new Date().toISOString()
-  const newUser: AppUser = {
+interface UserDocOverrides {
+  displayName?: string
+}
+
+function getTodayDateKey(date: Date): string {
+  return date.toISOString().split('T')[0]
+}
+
+function createDefaultCharacter(): CharacterProfile {
+  return { gender: 'boy', stage: 1, assetKey: null }
+}
+
+function createDefaultProgress(now: Date): SpiritualProgress {
+  return {
+    xp: 0,
+    level: 1,
+    streakDays: 0,
+    longestStreak: 0,
+    lastActivityDate: getTodayDateKey(now),
+    totalPrayersOffered: 0,
+  }
+}
+
+function createAuthUserDocument(
+  firebaseUser: User,
+  overrides: UserDocOverrides = {},
+): AppUser {
+  const now = new Date()
+  const nowTimestamp = Timestamp.now()
+
+  return {
     uid: firebaseUser.uid,
     email: firebaseUser.email ?? '',
-    displayName: firebaseUser.displayName ?? '',
+    displayName: overrides.displayName ?? firebaseUser.displayName ?? '',
     photoURL: firebaseUser.photoURL,
     role: 'member',
     status: 'active',
-    createdAt: now,
-    lastLoginAt: now,
+    createdAt: nowTimestamp,
+    lastLoginAt: nowTimestamp,
     onboardingCompleted: false,
     selectedChurchCampus: null,
-    character: { gender: 'boy', stage: 1, assetKey: null },
-    progress: {
-      xp: 0,
-      level: 1,
-      streakDays: 0,
-      longestStreak: 0,
-      lastActivityDate: now.split('T')[0],
-      totalPrayersOffered: 0,
-    },
+    character: createDefaultCharacter(),
+    progress: createDefaultProgress(now),
   }
+}
+
+export async function createUserDoc(
+  firebaseUser: User,
+  overrides: UserDocOverrides = {},
+): Promise<AppUser> {
+  const newUser = createAuthUserDocument(firebaseUser, overrides)
   await setDocument(userDocPath(firebaseUser.uid), newUser)
   return newUser
 }
 
 export async function updateLastLogin(uid: string): Promise<void> {
-  await updateDocument(userDocPath(uid), { lastLoginAt: new Date().toISOString() })
+  await updateDocument(userDocPath(uid), { lastLoginAt: Timestamp.now() })
 }
 
 export async function getOrCreateUserDoc(firebaseUser: User): Promise<AppUser> {
   const existing = await fetchUserDoc(firebaseUser.uid)
   if (existing) {
-    await updateLastLogin(firebaseUser.uid)
-    return { ...existing, lastLoginAt: new Date().toISOString() }
+    const lastLoginAt = Timestamp.now()
+    await updateDocument(userDocPath(firebaseUser.uid), { lastLoginAt })
+    return { ...existing, lastLoginAt }
   }
   return createUserDoc(firebaseUser)
 }
 
-export { signInWithGoogle, signInWithEmail, registerWithEmail, signOut, onAuthStateChanged }
+export {
+  initGoogleSignIn,
+  isGoogleSignInConfigured,
+  signInWithGoogle,
+  signInWithEmail,
+  registerWithEmail,
+  updateAuthDisplayName,
+  signOut,
+  onAuthStateChanged,
+}

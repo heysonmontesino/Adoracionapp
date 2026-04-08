@@ -1,4 +1,16 @@
 import { useAuthStore } from '../store'
+import { FirestoreTimestampValue } from '../../../shared/types/firestore'
+
+const makeTimestamp = (seconds: number): FirestoreTimestampValue => ({
+  seconds,
+  nanoseconds: 0,
+  toDate: () => new Date(seconds * 1000),
+  toMillis: () => seconds * 1000,
+  toJSON: () => ({ seconds, nanoseconds: 0, type: 'timestamp' }),
+  valueOf: () => `Timestamp(seconds=${seconds}, nanoseconds=0)`,
+  isEqual: (other: FirestoreTimestampValue) =>
+    other.seconds === seconds && other.nanoseconds === 0,
+})
 
 const mockUser = {
   uid: 'abc123',
@@ -7,8 +19,8 @@ const mockUser = {
   photoURL: null,
   role: 'member' as const,
   status: 'active' as const,
-  createdAt: '2026-04-07T00:00:00.000Z',
-  lastLoginAt: '2026-04-07T00:00:00.000Z',
+  createdAt: makeTimestamp(1_700_000_000),
+  lastLoginAt: makeTimestamp(1_700_000_001),
   onboardingCompleted: false,
   selectedChurchCampus: null,
   character: { gender: 'boy' as const, stage: 1 as const, assetKey: null },

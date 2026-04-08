@@ -26,7 +26,7 @@ const containerClass: Record<ButtonVariant, string> = {
 }
 
 const textClass: Record<ButtonVariant, string> = {
-  primary: 'font-jakarta-bold text-base text-[#003737]',
+  primary: 'font-jakarta-bold text-base text-on-primary',
   secondary: 'font-jakarta-bold text-base text-primary',
   ghost: 'font-jakarta-bold text-base text-primary',
 }

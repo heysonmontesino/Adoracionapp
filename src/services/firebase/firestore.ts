@@ -3,6 +3,7 @@ import {
   doc,
   getDoc,
   setDoc,
+  addDoc,
   updateDoc,
   collection,
   query,
@@ -20,6 +21,15 @@ export async function getDocument<T>(path: string): Promise<T | null> {
   const ref = doc(db, path)
   const snap = await getDoc(ref)
   return snap.exists() ? (snap.data() as T) : null
+}
+
+export async function addDocument<T extends DocumentData>(
+  collectionPath: string,
+  data: T,
+): Promise<string> {
+  const ref = collection(db, collectionPath)
+  const docRef = await addDoc(ref, data)
+  return docRef.id
 }
 
 export async function setDocument<T extends DocumentData>(

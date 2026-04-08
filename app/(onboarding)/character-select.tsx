@@ -2,9 +2,8 @@ import { useState } from 'react'
 import { View, Text, TouchableOpacity } from 'react-native'
 import { Screen } from '../../src/shared/components/layout/Screen'
 import { Button } from '../../src/shared/components/ui/Button'
-import { useAuthStore } from '../../src/features/auth/store'
-import { useCharacterStore } from '../../src/features/character/store'
-import { completeOnboarding } from '../../src/features/onboarding/repository'
+import { useToast } from '../../src/shared/components/feedback/Toast'
+import { useOnboardingActions } from '../../src/features/onboarding/hooks/useOnboardingActions'
 import { CharacterGender } from '../../src/features/character/types'
 
 const OPTIONS: { gender: CharacterGender; label: string }[] = [
@@ -13,27 +12,21 @@ const OPTIONS: { gender: CharacterGender; label: string }[] = [
 ]
 
 export default function CharacterSelectScreen() {
-  const { user, setUser } = useAuthStore()
-  const { setGender } = useCharacterStore()
+  const { completeOnboardingForCurrentUser, isSubmitting, user } =
+    useOnboardingActions()
+  const { showToast } = useToast()
   const [selected, setSelected] = useState<CharacterGender | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
 
   async function handleContinue() {
     if (!selected || !user) return
-    setIsLoading(true)
-    try {
-      await completeOnboarding(user.uid, selected)
-    } catch {
-      // Firestore write failed — local state still updated.
-      // Next onAuthStateChanged will re-sync from Firestore.
-    } finally {
-      setGender(selected)
-      setUser({
-        ...user,
-        onboardingCompleted: true,
-        character: { ...user.character, gender: selected },
+
+    const success = await completeOnboardingForCurrentUser(selected)
+
+    if (!success) {
+      showToast({
+        message: 'No se pudo guardar tu selección. Intenta de nuevo.',
+        tone: 'error',
       })
-      setIsLoading(false)
     }
   }
 
@@ -52,15 +45,20 @@ export default function CharacterSelectScreen() {
             <TouchableOpacity
               key={gender}
               className={[
-                'flex-1 h-48 rounded-2xl items-center justify-center bg-surface-container-low',
-                selected === gender ? 'border-2 border-primary' : '',
+                'flex-1 h-48 rounded-2xl items-center justify-center',
+                selected === gender ? 'bg-surface-bright' : 'bg-surface-container-low',
               ].join(' ')}
               onPress={() => setSelected(gender)}
               activeOpacity={0.8}
               accessibilityRole="radio"
               accessibilityState={{ selected: selected === gender }}
             >
-              <Text className="font-humane text-5xl text-on-surface uppercase">
+              <Text
+                className={[
+                  'font-humane text-5xl uppercase',
+                  selected === gender ? 'text-primary' : 'text-on-surface',
+                ].join(' ')}
+              >
                 {label}
               </Text>
             </TouchableOpacity>
@@ -71,7 +69,7 @@ export default function CharacterSelectScreen() {
           label="Continuar"
           onPress={handleContinue}
           disabled={selected === null}
-          isLoading={isLoading}
+          isLoading={isSubmitting}
         />
       </View>
     </Screen>

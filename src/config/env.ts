@@ -14,7 +14,7 @@ export const env = {
     appId: required('EXPO_PUBLIC_FIREBASE_APP_ID'),
   },
   google: {
-    webClientId: required('EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID'),
+    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? '',
   },
   youtube: {
     apiKey: process.env.EXPO_PUBLIC_YOUTUBE_API_KEY ?? '',

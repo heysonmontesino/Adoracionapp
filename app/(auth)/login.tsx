@@ -10,51 +10,49 @@ import {
 import { useRouter } from 'expo-router'
 import { Screen } from '../../src/shared/components/layout/Screen'
 import { Button } from '../../src/shared/components/ui/Button'
-import { useAuthStore } from '../../src/features/auth/store'
-import {
-  signInWithGoogle,
-  signInWithEmail,
-  getOrCreateUserDoc,
-} from '../../src/features/auth/repository'
+import { useToast } from '../../src/shared/components/feedback/Toast'
+import { useAuthActions } from '../../src/features/auth/hooks/useAuthActions'
 import { Colors } from '../../src/shared/constants/colors'
 
 export default function LoginScreen() {
   const router = useRouter()
-  const { setUser } = useAuthStore()
+  const {
+    authenticateWithEmail,
+    authenticateWithGoogle,
+    isGoogleSignInAvailable,
+    isSubmitting,
+  } = useAuthActions()
+  const { showToast } = useToast()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   async function handleGoogleSignIn() {
-    setIsLoading(true)
-    setError(null)
-    try {
-      const firebaseUser = await signInWithGoogle()
-      const appUser = await getOrCreateUserDoc(firebaseUser)
-      setUser(appUser)
-    } catch {
-      setError('No se pudo iniciar sesión con Google. Intenta de nuevo.')
-    } finally {
-      setIsLoading(false)
+    const success = await authenticateWithGoogle()
+
+    if (!success) {
+      showToast({
+        message: 'No se pudo iniciar sesión con Google. Intenta de nuevo.',
+        tone: 'error',
+      })
     }
   }
 
   async function handleEmailSignIn() {
     if (!email.trim() || !password) {
-      setError('Ingresa tu correo y contraseña')
+      showToast({
+        message: 'Ingresa tu correo y contraseña.',
+        tone: 'error',
+      })
       return
     }
-    setIsLoading(true)
-    setError(null)
-    try {
-      const firebaseUser = await signInWithEmail(email.trim(), password)
-      const appUser = await getOrCreateUserDoc(firebaseUser)
-      setUser(appUser)
-    } catch {
-      setError('Correo o contraseña incorrectos')
-    } finally {
-      setIsLoading(false)
+
+    const success = await authenticateWithEmail(email.trim(), password)
+
+    if (!success) {
+      showToast({
+        message: 'Correo o contraseña incorrectos.',
+        tone: 'error',
+      })
     }
   }
 
@@ -71,12 +69,6 @@ export default function LoginScreen() {
           <Text className="font-jakarta-regular text-base text-on-surface/60 mb-10">
             Inicia sesión para continuar
           </Text>
-
-          {error !== null && (
-            <Text className="text-red-400 font-jakarta-regular text-sm mb-4">
-              {error}
-            </Text>
-          )}
 
           <TextInput
             className="bg-surface-container-low rounded-xl px-4 py-3 text-on-surface font-jakarta-regular mb-3"
@@ -101,15 +93,22 @@ export default function LoginScreen() {
           <Button
             label="Iniciar sesión"
             onPress={handleEmailSignIn}
-            isLoading={isLoading}
+            isLoading={isSubmitting}
             style={{ marginBottom: 12 }}
           />
           <Button
             label="Continuar con Google"
             onPress={handleGoogleSignIn}
             variant="secondary"
-            isLoading={isLoading}
+            disabled={!isGoogleSignInAvailable}
+            isLoading={isSubmitting}
           />
+
+          {!isGoogleSignInAvailable && (
+            <Text className="font-jakarta-regular text-sm text-on-surface/60 mt-3">
+              Google Sign-In requiere configurar el Web Client ID en el entorno local.
+            </Text>
+          )}
 
           <TouchableOpacity
             className="items-center mt-6"

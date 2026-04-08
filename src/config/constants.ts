@@ -7,8 +7,9 @@ export const LEVELS = [
 ] as const
 
 export const PAGINATION = {
-  sermons: 10,
-  messages: 20,
-  prayerRequests: 15,
-  posts: 20,
+  sermons: 20,
+  messages: 15,
+  announcements: 10,
+  prayerRequests: 25,
+  posts: 30,
 } as const

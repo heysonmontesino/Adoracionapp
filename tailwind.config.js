@@ -15,6 +15,7 @@ module.exports = {
         'on-surface': '#E5DFFD',
         primary: '#4ADADA',
         'primary-container': '#00B8B8',
+        'on-primary': '#003737',
         'outline-variant': '#3C4949',
       },
       fontFamily: {

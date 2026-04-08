@@ -5,6 +5,7 @@ export const Colors = {
   surfaceBright: '#3A364E',
   onSurface: '#E5DFFD',
   onSurface60: '#E5DFFD99',  // 60% opacity
+  onSurface40: '#E5DFFD66',  // 40% opacity — used for placeholder text
   primary: '#4ADADA',
   primaryContainer: '#00B8B8',
   onPrimary: '#003737',
