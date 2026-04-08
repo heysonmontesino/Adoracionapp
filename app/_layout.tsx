@@ -41,8 +41,8 @@ function RootNavigator() {
 export default function RootLayout() {
   const { setUser, setLoading } = useAuthStore()
 
-  // TODO: Add 'HUMANE-Bold': require('../assets/fonts/HUMANE-Bold.otf') once the file is placed
   const [fontsLoaded, fontError] = useFonts({
+    'HUMANE-Bold':               require('../assets/fonts/HUMANE-Bold.ttf'),
     'PlusJakartaSans-Light':     require('../assets/fonts/PlusJakartaSans-Light.ttf'),
     'PlusJakartaSans-Regular':   require('../assets/fonts/PlusJakartaSans-Regular.ttf'),
     'PlusJakartaSans-Medium':    require('../assets/fonts/PlusJakartaSans-Medium.ttf'),
