@@ -6,6 +6,15 @@ export const LEVELS = [
   { level: 5, name: 'Mentor espiritual',      minXP: 7000, maxXP: Infinity },
 ] as const
 
+export const XP_REWARDS = {
+  habit_completed: 50,
+  prayer_offered: 25,
+  sermon_watched: 75,
+  streak_milestone: 100,
+  onboarding_complete: 200,
+  challenge_completed: 150,
+} as const
+
 export const PAGINATION = {
   sermons: 20,
   messages: 15,
