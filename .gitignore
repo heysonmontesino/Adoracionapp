@@ -39,3 +39,8 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# secrets / service files
+.env.local
+GoogleService-Info.plist
+google-services.json
