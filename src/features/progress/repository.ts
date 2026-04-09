@@ -1,9 +1,10 @@
 import { orderBy, where } from 'firebase/firestore'
 import {
   addDocument,
+  executeTransaction,
+  generateDocId,
   getDocument,
   queryDocuments,
-  setDocument,
   updateDocument,
   Timestamp,
 } from '../../services/firebase/firestore'
@@ -126,7 +127,8 @@ export async function isHabitCompletedToday(
   return doc !== null
 }
 
-// Returns null if already completed today (idempotent)
+// Returns null if already completed today (idempotent).
+// All three writes (completion, xp-event, user.progress) are atomic via runTransaction.
 export async function completeHabit(
   uid: string,
   habitId: string,
@@ -134,30 +136,57 @@ export async function completeHabit(
 ): Promise<{ xpAwarded: number; didLevelUp: boolean; isStreakMilestone: boolean } | null> {
   const today = getTodayDateKey()
   const completionId = buildHabitCompletionId(habitId, today)
-  const alreadyDone = await getDocument(`${completionsPath(uid)}/${completionId}`)
-
-  if (alreadyDone) return null
-
+  // Pre-generate the xp-event ID outside the transaction (no I/O needed)
+  const xpEventId = generateDocId(XP_EVENTS_COLLECTION)
   const xpAwarded = getXPReward('habit_completed')
 
-  // Write completion doc (idempotent key prevents duplicates)
-  await setDocument(`${completionsPath(uid)}/${completionId}`, {
-    id: completionId,
-    habitId,
-    dateKey: today,
-    completedAt: Timestamp.now(),
-    xpAwarded,
-  })
-
-  // Write XP event log
-  await writeXPEvent(uid, 'habit_completed', xpAwarded, habitId)
-
-  // Update user progress in Firestore
-  const { didLevelUp, isStreakMilestone: milestone } = await updateUserProgress(
-    uid,
-    currentProgress,
+  // Compute all progress changes before entering the transaction — pure, no I/O
+  const { newXP, newLevel, didLevelUp } = applyXP(
+    currentProgress.xp,
+    currentProgress.level,
     xpAwarded,
   )
+  const streakResult = updateStreak(
+    currentProgress.lastActivityDate,
+    currentProgress.streakDays,
+    currentProgress.longestStreak,
+    today,
+  )
+  const updatedProgress: ProgressSnapshot = {
+    xp: newXP,
+    level: newLevel,
+    streakDays: streakResult.streakDays,
+    longestStreak: streakResult.longestStreak,
+    lastActivityDate: streakResult.isNewDay ? today : currentProgress.lastActivityDate,
+    totalPrayersOffered: currentProgress.totalPrayersOffered,
+  }
+  const milestoneHit = streakResult.isNewDay && isStreakMilestone(streakResult.streakDays)
 
-  return { xpAwarded, didLevelUp, isStreakMilestone: milestone }
+  return executeTransaction(async (tx) => {
+    // Idempotent guard — inside the transaction, prevents double-tap race
+    const existing = await tx.get(`${completionsPath(uid)}/${completionId}`)
+    if (existing) return null
+
+    tx.set(`${completionsPath(uid)}/${completionId}`, {
+      id: completionId,
+      habitId,
+      dateKey: today,
+      completedAt: Timestamp.now(),
+      xpAwarded,
+    })
+
+    tx.set(`${XP_EVENTS_COLLECTION}/${xpEventId}`, {
+      userId: uid,
+      type: 'habit_completed' as const,
+      xpAwarded,
+      sourceId: habitId,
+      dateKey: today,
+      metadata: {},
+      createdAt: Timestamp.now(),
+    })
+
+    tx.update(userPath(uid), { progress: updatedProgress })
+
+    return { xpAwarded, didLevelUp, isStreakMilestone: milestoneHit }
+  })
 }

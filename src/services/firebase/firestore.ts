@@ -8,6 +8,7 @@ import {
   collection,
   query,
   getDocs,
+  runTransaction,
   QueryConstraint,
   DocumentData,
   Timestamp,
@@ -16,6 +17,47 @@ import { firebaseApp } from './config'
 
 export const db = getFirestore(firebaseApp)
 export { Timestamp }
+
+// ─── Transaction support ──────────────────────────────────────────────────────
+
+export interface TransactionContext {
+  get<T>(path: string): Promise<T | null>
+  set<T extends DocumentData>(path: string, data: T): void
+  update(path: string, data: Partial<DocumentData>): void
+}
+
+/**
+ * Wraps Firestore runTransaction with typed path-based helpers.
+ * All three writes inside the callback commit atomically or not at all.
+ */
+export async function executeTransaction<T>(
+  callback: (tx: TransactionContext) => Promise<T>,
+): Promise<T> {
+  return runTransaction(db, async (transaction) => {
+    const ctx: TransactionContext = {
+      get: async <T>(path: string): Promise<T | null> => {
+        const ref = doc(db, path)
+        const snap = await transaction.get(ref)
+        return snap.exists() ? (snap.data() as T) : null
+      },
+      set: <T extends DocumentData>(path: string, data: T): void => {
+        transaction.set(doc(db, path), data)
+      },
+      update: (path: string, data: Partial<DocumentData>): void => {
+        transaction.update(doc(db, path), data)
+      },
+    }
+    return callback(ctx)
+  })
+}
+
+/**
+ * Generates a Firestore document ID without writing.
+ * Use before a transaction to pre-compute the ID for append-only collections.
+ */
+export function generateDocId(collectionPath: string): string {
+  return doc(collection(db, collectionPath)).id
+}
 
 export async function getDocument<T>(path: string): Promise<T | null> {
   const ref = doc(db, path)

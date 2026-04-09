@@ -1,0 +1,364 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function self(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function currentUserExists() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function currentUserDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function isActiveUser() {
+      return currentUserExists()
+        && currentUserDoc().data.status == 'active';
+    }
+
+    function currentRole() {
+      return currentUserExists()
+        ? currentUserDoc().data.role
+        : null;
+    }
+
+    function isAdmin() {
+      return isActiveUser() && currentRole() == 'admin';
+    }
+
+    function isPastorOrAdmin() {
+      return isActiveUser() && currentRole() in ['pastor', 'admin'];
+    }
+
+    function isLeaderOrAbove() {
+      return isActiveUser() && currentRole() in ['leader', 'pastor', 'admin'];
+    }
+
+    function validCharacter(character) {
+      return character is map
+        && character.gender in ['boy', 'girl']
+        && character.stage in [1, 2, 3, 4, 5]
+        && (character.assetKey == null || character.assetKey is string);
+    }
+
+    function validProgress(progress) {
+      return progress is map
+        && progress.xp is int
+        && progress.xp >= 0
+        && progress.level in [1, 2, 3, 4, 5]
+        && progress.streakDays is int
+        && progress.streakDays >= 0
+        && progress.longestStreak is int
+        && progress.longestStreak >= 0
+        && progress.lastActivityDate is string
+        && progress.totalPrayersOffered is int
+        && progress.totalPrayersOffered >= 0;
+    }
+
+    function validUserCreate(userId) {
+      return self(userId)
+        && request.resource.data.keys().hasOnly([
+          'uid',
+          'email',
+          'displayName',
+          'photoURL',
+          'role',
+          'status',
+          'createdAt',
+          'lastLoginAt',
+          'onboardingCompleted',
+          'selectedChurchCampus',
+          'character',
+          'progress',
+        ])
+        && request.resource.data.uid == userId
+        && request.auth.token.email is string
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.displayName is string
+        && (request.resource.data.photoURL == null || request.resource.data.photoURL is string)
+        && request.resource.data.role == 'member'
+        && request.resource.data.status == 'active'
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.lastLoginAt is timestamp
+        && request.resource.data.onboardingCompleted == false
+        && (request.resource.data.selectedChurchCampus == null
+            || request.resource.data.selectedChurchCampus is string)
+        && validCharacter(request.resource.data.character)
+        && validProgress(request.resource.data.progress)
+        && request.resource.data.progress.xp == 0
+        && request.resource.data.progress.level == 1;
+    }
+
+    function validSelfUserUpdate(userId) {
+      return self(userId)
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.email == resource.data.email
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.status == resource.data.status
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.displayName is string
+        && (request.resource.data.photoURL == null || request.resource.data.photoURL is string)
+        && (request.resource.data.selectedChurchCampus == null
+            || request.resource.data.selectedChurchCampus is string)
+        && request.resource.data.lastLoginAt is timestamp
+        && request.resource.data.onboardingCompleted is bool
+        && validCharacter(request.resource.data.character)
+        && validProgress(request.resource.data.progress)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'displayName',
+          'photoURL',
+          'lastLoginAt',
+          'onboardingCompleted',
+          'selectedChurchCampus',
+          'character',
+          'progress',
+        ]);
+    }
+
+    function validHabitCreate() {
+      return request.resource.data.keys().hasOnly([
+          'name',
+          'xpReward',
+          'active',
+          'createdAt',
+        ])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 60
+        && request.resource.data.xpReward in [25, 50, 75, 100, 150, 200]
+        && request.resource.data.active == true
+        && request.resource.data.createdAt is timestamp;
+    }
+
+    function validHabitArchive() {
+      return request.resource.data.name == resource.data.name
+        && request.resource.data.xpReward == resource.data.xpReward
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.active is bool
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['active']);
+    }
+
+    function validHabitCompletionCreate(completionId) {
+      return request.resource.data.keys().hasOnly([
+          'id',
+          'habitId',
+          'dateKey',
+          'completedAt',
+          'xpAwarded',
+        ])
+        && request.resource.data.id == completionId
+        && request.resource.data.habitId is string
+        && request.resource.data.dateKey is string
+        && request.resource.data.completedAt is timestamp
+        && request.resource.data.xpAwarded in [25, 50, 75, 100, 150, 200];
+    }
+
+    function validXPEventCreate() {
+      return request.resource.data.keys().hasOnly([
+          'userId',
+          'type',
+          'xpAwarded',
+          'sourceId',
+          'dateKey',
+          'metadata',
+          'createdAt',
+        ])
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.type in [
+          'habit_completed',
+          'prayer_offered',
+          'sermon_watched',
+          'streak_milestone',
+          'onboarding_complete',
+          'challenge_completed',
+        ]
+        && request.resource.data.xpAwarded in [25, 50, 75, 100, 150, 200]
+        && (request.resource.data.sourceId == null || request.resource.data.sourceId is string)
+        && request.resource.data.dateKey is string
+        && request.resource.data.metadata is map
+        && request.resource.data.createdAt is timestamp;
+    }
+
+    function canReadPrayerRequest(requestId) {
+      return exists(/databases/$(database)/documents/prayer-requests/$(requestId))
+        && isActiveUser()
+        && (
+          get(/databases/$(database)/documents/prayer-requests/$(requestId)).data.visibility == 'public'
+          || isLeaderOrAbove()
+        );
+    }
+
+    function isPrayerRequestOwner(requestId) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/prayer-requests/$(requestId))
+        && get(/databases/$(database)/documents/prayer-requests/$(requestId)).data.userId == request.auth.uid;
+    }
+
+    function validPrayerRequestCreate() {
+      return request.resource.data.keys().hasOnly([
+          'userId',
+          'displayName',
+          'anonymous',
+          'title',
+          'body',
+          'visibility',
+          'prayerCount',
+          'status',
+          'createdAt',
+          'updatedAt',
+          'answeredAt',
+        ])
+        && request.resource.data.userId == request.auth.uid
+        && (
+          (request.resource.data.anonymous == true && request.resource.data.displayName == null)
+          || (request.resource.data.anonymous == false && request.resource.data.displayName is string)
+        )
+        && (request.resource.data.title == null || request.resource.data.title is string)
+        && request.resource.data.body is string
+        && request.resource.data.body.size() >= 10
+        && request.resource.data.body.size() <= 1000
+        && request.resource.data.visibility in ['public', 'leaders_only']
+        && (request.resource.data.visibility == 'public' || isLeaderOrAbove())
+        && request.resource.data.prayerCount == 0
+        && request.resource.data.status == 'active'
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.updatedAt is timestamp
+        && request.resource.data.answeredAt == null;
+    }
+
+    function canIncrementPrayerCount(requestId) {
+      return isActiveUser()
+        && resource.data.status == 'active'
+        && exists(/databases/$(database)/documents/prayer-requests/$(requestId)/prayers/$(request.auth.uid))
+        && request.resource.data.prayerCount is int
+        && request.resource.data.prayerCount == resource.data.prayerCount + 1
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['prayerCount']);
+    }
+
+    function canReadChannelType(channelType) {
+      return isActiveUser()
+        && (
+          channelType == 'public'
+          || (channelType == 'leaders' && isLeaderOrAbove())
+          || (channelType == 'pastors' && isPastorOrAdmin())
+        );
+    }
+
+    function canAccessChannel(channelId) {
+      return exists(/databases/$(database)/documents/channels/$(channelId))
+        && canReadChannelType(
+          get(/databases/$(database)/documents/channels/$(channelId)).data.type
+        );
+    }
+
+    function validChannelPostCreate() {
+      return request.resource.data.keys().hasOnly([
+          'userId',
+          'displayName',
+          'photoURL',
+          'title',
+          'body',
+          'createdAt',
+        ])
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.displayName is string
+        && (request.resource.data.photoURL == null || request.resource.data.photoURL is string)
+        && (request.resource.data.title == null || request.resource.data.title is string)
+        && request.resource.data.body is string
+        && request.resource.data.body.size() > 0
+        && request.resource.data.body.size() <= 500
+        && request.resource.data.createdAt is timestamp;
+    }
+
+    match /users/{userId} {
+      allow get: if self(userId) || isPastorOrAdmin();
+      allow list: if false;
+      allow create: if validUserCreate(userId);
+      allow update: if validSelfUserUpdate(userId) || isAdmin();
+      allow delete: if false;
+    }
+
+    match /users/{userId}/habits/{habitId} {
+      allow get, list: if self(userId) && isActiveUser();
+      allow create: if self(userId) && isActiveUser() && validHabitCreate();
+      allow update: if self(userId) && isActiveUser() && validHabitArchive();
+      allow delete: if false;
+    }
+
+    match /users/{userId}/habit-completions/{completionId} {
+      allow get, list: if self(userId) && isActiveUser();
+      allow create: if self(userId) && isActiveUser() && validHabitCompletionCreate(completionId);
+      allow update, delete: if false;
+    }
+
+    match /xp-events/{eventId} {
+      allow get, list: if (isActiveUser() && resource.data.userId == request.auth.uid)
+                        || isAdmin();
+      allow create: if isActiveUser() && validXPEventCreate();
+      allow update, delete: if false;
+    }
+
+    match /sermons/{sermonId} {
+      allow get, list: if (isActiveUser() && resource.data.status == 'published')
+                        || isPastorOrAdmin();
+      allow create, update, delete: if false;
+    }
+
+    match /pastoral-messages/{messageId} {
+      allow get, list: if isActiveUser();
+      allow create, update, delete: if false;
+    }
+
+    match /announcements/{announcementId} {
+      allow get, list: if isActiveUser();
+      allow create, update, delete: if false;
+    }
+
+    match /church-services/{serviceId} {
+      allow get, list: if (isActiveUser() && resource.data.active == true)
+                        || isPastorOrAdmin();
+      allow create, update, delete: if false;
+    }
+
+    match /prayer-requests/{requestId} {
+      allow get, list: if isActiveUser()
+                        && (resource.data.visibility == 'public' || isLeaderOrAbove());
+      allow create: if isActiveUser() && validPrayerRequestCreate();
+      allow update: if canIncrementPrayerCount(requestId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /prayer-requests/{requestId}/prayers/{userId} {
+      allow get: if (self(userId) && isActiveUser())
+                  || isPrayerRequestOwner(requestId)
+                  || isLeaderOrAbove();
+      allow list: if false;
+      allow create: if self(userId) && canReadPrayerRequest(requestId);
+      allow update, delete: if false;
+    }
+
+    match /channels/{channelId} {
+      allow get, list: if canReadChannelType(resource.data.type);
+      allow create, update, delete: if false;
+    }
+
+    match /channels/{channelId}/posts/{postId} {
+      allow get, list: if canAccessChannel(channelId);
+      allow create: if canAccessChannel(channelId) && validChannelPostCreate();
+      allow update, delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
