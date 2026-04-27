@@ -1,0 +1,17 @@
+diff --git a/node_modules/react-native/ReactCommon/react/renderer/imagemanager/platform/ios/react/renderer/imagemanager/RCTImageManager.mm b/node_modules/react-native/ReactCommon/react/renderer/imagemanager/platform/ios/react/renderer/imagemanager/RCTImageManager.mm
+index 601dfe4..d711d9a 100644
+--- a/node_modules/react-native/ReactCommon/react/renderer/imagemanager/platform/ios/react/renderer/imagemanager/RCTImageManager.mm
++++ b/node_modules/react-native/ReactCommon/react/renderer/imagemanager/platform/ios/react/renderer/imagemanager/RCTImageManager.mm
+@@ -65,6 +65,12 @@ using namespace facebook::react;
+    * T46024425 for more details.
+    */
+   dispatch_async(_backgroundSerialQueue, ^{
++    // Guard: if the image source URI could not be parsed into a valid URL request,
++    // skip loading to avoid a spurious RCTLogError in _loadURLRequest.
++    if (!request) {
++      return;
++    }
++
+     auto completionBlock = ^(NSError *error, UIImage *image, id metadata) {
+       auto observerCoordinator = weakObserverCoordinator.lock();
+       if (!observerCoordinator) {

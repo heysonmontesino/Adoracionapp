@@ -2,17 +2,20 @@ import { useState } from 'react'
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
+  StyleSheet,
 } from 'react-native'
 import { useRouter } from 'expo-router'
 import { Screen } from '../../src/shared/components/layout/Screen'
-import { Button } from '../../src/shared/components/ui/Button'
+import { AppButton } from '../../src/shared/components/ui/AppButton'
+import { AppInput } from '../../src/shared/components/ui/AppInput'
+import { AppHeader } from '../../src/shared/components/ui/AppHeader'
 import { useToast } from '../../src/shared/components/feedback/Toast'
 import { useAuthActions } from '../../src/features/auth/hooks/useAuthActions'
-import { Colors } from '../../src/shared/constants/colors'
+import { Tokens } from '../../src/shared/constants/tokens'
 
 export default function RegisterScreen() {
   const router = useRouter()
@@ -56,62 +59,88 @@ export default function RegisterScreen() {
   return (
     <Screen>
       <KeyboardAvoidingView
-        className="flex-1"
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <View className="flex-1 justify-center px-6">
-          <Text className="font-humane text-6xl text-on-surface uppercase leading-none mb-2">
-            CREA TU{'\n'}CUENTA
-          </Text>
-          <Text className="font-jakarta-regular text-base text-on-surface/60 mb-10">
-            Únete a la familia de fe
-          </Text>
-
-          <TextInput
-            className="bg-surface-container-low rounded-xl px-4 py-3 text-on-surface font-jakarta-regular mb-3"
-            placeholder="Nombre"
-            placeholderTextColor={Colors.onSurface60}
-            value={displayName}
-            onChangeText={setDisplayName}
-            textContentType="name"
-          />
-          <TextInput
-            className="bg-surface-container-low rounded-xl px-4 py-3 text-on-surface font-jakarta-regular mb-3"
-            placeholder="Correo electrónico"
-            placeholderTextColor={Colors.onSurface60}
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            textContentType="emailAddress"
-          />
-          <TextInput
-            className="bg-surface-container-low rounded-xl px-4 py-3 text-on-surface font-jakarta-regular mb-6"
-            placeholder="Contraseña (mínimo 6 caracteres)"
-            placeholderTextColor={Colors.onSurface60}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            textContentType="newPassword"
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          <AppHeader
+            variant="hero"
+            title={"CREA TU\nCUENTA"}
+            subtitle="Únete a la familia de fe"
           />
 
-          <Button
-            label="Crear cuenta"
-            onPress={handleRegister}
-            isLoading={isSubmitting}
-          />
+          <View style={styles.formContainer}>
+            <AppInput
+              placeholder="Nombre"
+              value={displayName}
+              onChangeText={setDisplayName}
+              textContentType="name"
+            />
+            <AppInput
+              placeholder="Correo electrónico"
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              textContentType="emailAddress"
+            />
+            <AppInput
+              placeholder="Contraseña (mínimo 6 caracteres)"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              textContentType="newPassword"
+            />
 
-          <TouchableOpacity
-            className="items-center mt-6"
-            onPress={() => router.back()}
-          >
-            <Text className="font-jakarta-regular text-sm text-on-surface/60">
-              ¿Ya tienes cuenta?{' '}
-              <Text className="text-primary font-jakarta-medium">Inicia sesión</Text>
-            </Text>
-          </TouchableOpacity>
-        </View>
+            <AppButton
+              label="Crear cuenta"
+              onPress={handleRegister}
+              isLoading={isSubmitting}
+              style={styles.primaryButton}
+            />
+
+            <TouchableOpacity
+              style={styles.linkButton}
+              onPress={() => router.back()}
+            >
+              <Text style={styles.linkText}>
+                ¿Ya tienes cuenta?{' '}
+                <Text style={styles.linkAccent}>Inicia sesión</Text>
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </Screen>
   )
 }
+
+const styles = StyleSheet.create({
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingBottom: Tokens.spacing[32],
+  },
+  formContainer: {
+    paddingHorizontal: Tokens.spacing.screenPadding,
+  },
+  primaryButton: {
+    marginTop: Tokens.spacing[8],
+  },
+  linkButton: {
+    alignItems: 'center',
+    marginTop: Tokens.spacing[24],
+  },
+  linkText: {
+    color: Tokens.colors.textMuted,
+    fontFamily: Tokens.typography.fontFamily.regular,
+    fontSize: Tokens.typography.fontSize.label,
+  },
+  linkAccent: {
+    color: Tokens.colors.primary,
+    fontFamily: Tokens.typography.fontFamily.medium,
+  },
+})

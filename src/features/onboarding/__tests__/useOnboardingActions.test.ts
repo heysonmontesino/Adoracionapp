@@ -32,7 +32,7 @@ const mockUser: AppUser = {
   lastLoginAt: makeTimestamp(1_700_000_001),
   onboardingCompleted: false,
   selectedChurchCampus: null,
-  character: { gender: 'boy', stage: 1, assetKey: null },
+  character: { gender: 'male', stage: 'baby', assetKey: null },
   progress: {
     xp: 0,
     level: 1,
@@ -47,7 +47,7 @@ describe('useOnboardingActions', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     useAuthStore.setState({ user: mockUser, isLoading: false, isAuthenticated: true })
-    useCharacterStore.setState({ gender: 'boy', currentAnimation: 'idle', mode: 'lottie' })
+    useCharacterStore.setState({ gender: 'male', currentAnimation: 'idle', mode: 'lottie' })
   })
 
   it('updates local auth and character state after successful persistence', async () => {
@@ -56,13 +56,13 @@ describe('useOnboardingActions', () => {
     const { result } = renderHook(() => useOnboardingActions())
 
     await act(async () => {
-      const success = await result.current.completeOnboardingForCurrentUser('girl')
+      const success = await result.current.completeOnboardingForCurrentUser('female')
       expect(success).toBe(true)
     })
 
     expect(useAuthStore.getState().user?.onboardingCompleted).toBe(true)
-    expect(useAuthStore.getState().user?.character.gender).toBe('girl')
-    expect(useCharacterStore.getState().gender).toBe('girl')
+    expect(useAuthStore.getState().user?.character.gender).toBe('female')
+    expect(useCharacterStore.getState().gender).toBe('female')
   })
 
   it('does not update local state when persistence fails', async () => {
@@ -73,12 +73,12 @@ describe('useOnboardingActions', () => {
     const { result } = renderHook(() => useOnboardingActions())
 
     await act(async () => {
-      const success = await result.current.completeOnboardingForCurrentUser('girl')
+      const success = await result.current.completeOnboardingForCurrentUser('female')
       expect(success).toBe(false)
     })
 
     expect(useAuthStore.getState().user?.onboardingCompleted).toBe(false)
-    expect(useAuthStore.getState().user?.character.gender).toBe('boy')
-    expect(useCharacterStore.getState().gender).toBe('boy')
+    expect(useAuthStore.getState().user?.character.gender).toBe('male')
+    expect(useCharacterStore.getState().gender).toBe('male')
   })
 })

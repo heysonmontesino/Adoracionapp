@@ -1,18 +1,27 @@
 import { useQuery } from '@tanstack/react-query'
 import { fetchPinnedAnnouncement } from '../../content/announcements/repository'
-import { fetchLatestMessage } from '../../content/pastoral-messages/repository'
-import { fetchFeaturedSermon } from '../../content/sermons/repository'
+import { fetchLatestSermonWithFallback } from '../../content/videos/repository'
+import { fetchActiveHomePastorMessage } from '../repository'
+
+async function resolveOrNull<T>(request: Promise<T>): Promise<T | null> {
+  try {
+    return await request
+  } catch (error) {
+    console.warn('[Home] Remote content unavailable', error)
+    return null
+  }
+}
 
 async function fetchHomeData() {
-  const [featuredSermon, latestMessage, pinnedAnnouncement] = await Promise.all([
-    fetchFeaturedSermon(),
-    fetchLatestMessage(),
-    fetchPinnedAnnouncement(),
+  const [latestSermon, pastorMessage, pinnedAnnouncement] = await Promise.all([
+    resolveOrNull(fetchLatestSermonWithFallback()),
+    resolveOrNull(fetchActiveHomePastorMessage()),
+    resolveOrNull(fetchPinnedAnnouncement()),
   ])
 
   return {
-    featuredSermon,
-    latestMessage,
+    latestSermon,
+    pastorMessage,
     pinnedAnnouncement,
   }
 }

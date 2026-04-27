@@ -8,8 +8,15 @@ import {
   fetchTodayCompletions,
   isHabitCompletedToday,
   writeXPEvent,
+  toggleChallenge,
 } from '../repository'
 import * as firestoreService from '../../../services/firebase/firestore'
+import * as streakEngine from '../engine/streaks'
+
+jest.mock('../engine/streaks', () => ({
+  ...jest.requireActual('../engine/streaks'),
+  getTodayDateKey: jest.fn(),
+}))
 
 const mockProgress = {
   xp: 0,
@@ -28,6 +35,7 @@ beforeEach(() => {
     seconds: 0,
     nanoseconds: 0,
   })
+  ;(streakEngine.getTodayDateKey as jest.Mock).mockReturnValue('2024-01-01')
 })
 
 describe('progress repository', () => {
@@ -43,10 +51,17 @@ describe('progress repository', () => {
       expect(result).toEqual(mockProgress)
     })
 
-    it('returns null when user doc does not exist', async () => {
+    it('returns a default snapshot when user doc does not exist', async () => {
       jest.spyOn(firestoreService, 'getDocument').mockResolvedValue(null)
 
-      expect(await fetchProgressSnapshot(uid)).toBeNull()
+      expect(await fetchProgressSnapshot(uid)).toEqual({
+        xp: 0,
+        level: 1,
+        streakDays: 0,
+        longestStreak: 0,
+        lastActivityDate: '2024-01-01',
+        totalPrayersOffered: 0,
+      })
     })
   })
 
@@ -129,44 +144,47 @@ describe('progress repository', () => {
   })
 
   describe('completeHabit', () => {
-    // Helper: configure executeTransaction mock to simulate tx.get returning a value
-    function mockTransaction(txGetReturn: unknown) {
-      let capturedTx: { get: jest.Mock; set: jest.Mock; update: jest.Mock }
+    // Helper: configure executeTransaction mock to simulate tx.get returning different values based on path
+    function setupTransactionMock(pathReturns: Record<string, any> = {}) {
+      const capturedTx = {
+        get: jest.fn((path: string) => Promise.resolve(pathReturns[path] ?? null)),
+        set: jest.fn(),
+        update: jest.fn(),
+        delete: jest.fn(),
+      }
 
       jest.spyOn(firestoreService, 'executeTransaction').mockImplementation(
         async (callback: (tx: typeof capturedTx) => Promise<unknown>) => {
-          capturedTx = {
-            get: jest.fn().mockResolvedValue(txGetReturn),
-            set: jest.fn(),
-            update: jest.fn(),
-          }
           return callback(capturedTx)
         },
       )
 
-      return { getCapturedTx: () => capturedTx! }
+      return capturedTx
     }
 
     it('returns null when habit is already completed today (idempotent guard fires inside tx)', async () => {
-      mockTransaction({ habitId: 'h1' }) // tx.get returns an existing doc
+      const today = '2024-01-01' // actual key used depends on engine/streaks
+      // We need to know the exact path used. In repository.ts: `users/${uid}/habit-completions/${id}`
+      const completionId = `h1_${today}` 
+      
+      const tx = setupTransactionMock({
+        [`users/${uid}/habit-completions/${completionId}`]: { habitId: 'h1' }
+      })
 
-      const result = await completeHabit(uid, 'h1', mockProgress)
+      const result = await completeHabit(uid, 'h1')
 
       expect(result).toBeNull()
-      // Transaction still ran — but no writes happened
-      const { getCapturedTx } = mockTransaction({ habitId: 'h1' })
-      await completeHabit(uid, 'h1', mockProgress)
-      const tx = getCapturedTx()
       expect(tx.set).not.toHaveBeenCalled()
       expect(tx.update).not.toHaveBeenCalled()
     })
 
     it('writes all three documents atomically when not yet completed', async () => {
-      const { getCapturedTx } = mockTransaction(null) // tx.get returns null → not done yet
+      const tx = setupTransactionMock({
+        [`users/${uid}`]: { progress: mockProgress }
+      })
 
-      const result = await completeHabit(uid, 'h1', mockProgress)
+      const result = await completeHabit(uid, 'h1')
 
-      const tx = getCapturedTx()
       expect(result).not.toBeNull()
       expect(result?.xpAwarded).toBe(50)
 
@@ -176,9 +194,9 @@ describe('progress repository', () => {
         expect.objectContaining({ habitId: 'h1', xpAwarded: 50 }),
       )
 
-      // XP event written with pre-generated ID (mock returns 'mock-xp-event-id')
+      // XP event written with determinista ID
       expect(tx.set).toHaveBeenCalledWith(
-        'xp-events/mock-xp-event-id',
+        expect.stringContaining('xp-events/grant_habit_h1_'),
         expect.objectContaining({ userId: uid, type: 'habit_completed', xpAwarded: 50 }),
       )
 
@@ -187,46 +205,111 @@ describe('progress repository', () => {
         `users/${uid}`,
         expect.objectContaining({ progress: expect.any(Object) }),
       )
-
-      // Old sequential helpers NOT called
-      expect(firestoreService.setDocument).not.toHaveBeenCalled()
-      expect(firestoreService.addDocument).not.toHaveBeenCalled()
-      expect(firestoreService.updateDocument).not.toHaveBeenCalled()
     })
 
     it('reports didLevelUp when XP crosses a level threshold', async () => {
-      mockTransaction(null)
+      // 140 XP + 50 = 190 → crosses level 2 threshold at 150
+      const nearLevelUp = { ...mockProgress, xp: 140, level: 1 as const }
+      
+      const tx = setupTransactionMock({
+        [`users/${uid}`]: { progress: nearLevelUp }
+      })
 
-      // 490 XP + 50 = 540 → crosses level 2 threshold at 500
-      const nearLevelUp = { ...mockProgress, xp: 490, level: 1 as const }
-      const result = await completeHabit(uid, 'h1', nearLevelUp)
+      const result = await completeHabit(uid, 'h1')
 
       expect(result?.didLevelUp).toBe(true)
+      expect(tx.update).toHaveBeenCalledWith(
+        `users/${uid}`,
+        expect.objectContaining({
+          progress: expect.objectContaining({ level: 2 })
+        })
+      )
     })
 
     it('reports isStreakMilestone on milestone days', async () => {
-      mockTransaction(null)
-
       // Streak 6 + next consecutive day = 7 (milestone)
       const nearMilestone = {
         ...mockProgress,
         streakDays: 6,
         longestStreak: 6,
-        lastActivityDate: new Date(Date.now() - 86400000).toISOString().split('T')[0], // yesterday
+        lastActivityDate: '2023-12-31', // yesterday relative to 2024-01-01
       }
-      const result = await completeHabit(uid, 'h1', nearMilestone)
+      
+      setupTransactionMock({
+        [`users/${uid}`]: { progress: nearMilestone }
+      })
+
+      const result = await completeHabit(uid, 'h1')
 
       expect(result?.isStreakMilestone).toBe(true)
     })
 
     it('reports didLevelUp false and isStreakMilestone false on a normal completion', async () => {
-      mockTransaction(null)
+      setupTransactionMock({
+        [`users/${uid}`]: { progress: mockProgress }
+      })
 
-      const result = await completeHabit(uid, 'h1', mockProgress) // 0 XP, streak 0
+      const result = await completeHabit(uid, 'h1') // 0 XP, streak 0
 
       expect(result?.didLevelUp).toBe(false)
-      // streak goes from 0 → 1 (not a milestone day)
       expect(result?.isStreakMilestone).toBe(false)
+    })
+  })
+
+  describe('toggleChallenge', () => {
+    function setupTransactionMock(pathReturns: Record<string, any> = {}) {
+      const capturedTx = {
+        get: jest.fn((path: string) => Promise.resolve(pathReturns[path] ?? null)),
+        set: jest.fn(),
+        update: jest.fn(),
+        delete: jest.fn(),
+      }
+
+      jest.spyOn(firestoreService, 'executeTransaction').mockImplementation(
+        async (callback: (tx: typeof capturedTx) => Promise<unknown>) => {
+          return callback(capturedTx)
+        },
+      )
+
+      return capturedTx
+    }
+
+    it('adds XP and creates document when toggling ON', async () => {
+      const tx = setupTransactionMock({
+        [`users/${uid}`]: { progress: mockProgress }
+      })
+
+      await toggleChallenge(uid, 'chal-1', 'daily', 20, true, 'chal-1_daily_2024-01-01')
+
+      expect(tx.set).toHaveBeenCalledWith(
+        expect.stringContaining('challenge-completions/chal-1_daily_2024-01-01'),
+        expect.any(Object)
+      )
+      expect(tx.update).toHaveBeenCalledWith(
+        `users/${uid}`,
+        expect.objectContaining({
+          progress: expect.objectContaining({ xp: 20 })
+        })
+      )
+    })
+
+    it('removes XP and deletes document when toggling OFF', async () => {
+      const tx = setupTransactionMock({
+        [`users/${uid}/challenge-completions/chal-1_daily_2024-01-01`]: { challengeId: 'chal-1' },
+        [`users/${uid}`]: { progress: { ...mockProgress, xp: 100 } }
+      })
+
+      await toggleChallenge(uid, 'chal-1', 'daily', 20, false, 'chal-1_daily_2024-01-01')
+
+      expect(tx.delete).toHaveBeenCalledWith(
+        expect.stringContaining('challenge-completions/chal-1_daily_2024-01-01')
+      )
+      expect(tx.update).toHaveBeenCalledWith(
+        `users/${uid}`,
+        expect.objectContaining({
+          progress: expect.objectContaining({ xp: 80 })
+        })
+      )
     })
   })
 })

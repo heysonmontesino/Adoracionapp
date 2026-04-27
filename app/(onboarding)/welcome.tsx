@@ -1,24 +1,23 @@
-import { View, Text } from 'react-native'
+import { View, Text, StyleSheet } from 'react-native'
 import { useRouter } from 'expo-router'
 import { Screen } from '../../src/shared/components/layout/Screen'
-import { Button } from '../../src/shared/components/ui/Button'
+import { AppButton } from '../../src/shared/components/ui/AppButton'
+import { Tokens } from '../../src/shared/constants/tokens'
 
 export default function WelcomeScreen() {
   const router = useRouter()
 
   return (
     <Screen>
-      <View className="flex-1 justify-end px-6 pb-12">
-        <View className="mb-10">
-          <Text className="font-humane text-7xl text-on-surface uppercase leading-none mb-6">
-            BIENVENIDO{'\n'}A ADORACIÓN
-          </Text>
-          <Text className="font-jakarta-regular text-base text-on-surface/70 leading-relaxed">
+      <View style={styles.container}>
+        <View style={styles.heroBlock}>
+          <Text style={styles.title}>BIENVENIDO{'\n'}A ADORACIÓN</Text>
+          <Text style={styles.subtitle}>
             Un espacio para crecer en tu fe, conectar con tu comunidad y vivir tu
             camino espiritual cada día.
           </Text>
         </View>
-        <Button
+        <AppButton
           label="Comenzar"
           onPress={() => router.push('/(onboarding)/character-select')}
         />
@@ -26,3 +25,29 @@ export default function WelcomeScreen() {
     </Screen>
   )
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    paddingHorizontal: Tokens.spacing.screenPadding,
+    paddingBottom: Tokens.spacing[48],
+  },
+  heroBlock: {
+    marginBottom: Tokens.spacing[32],
+  },
+  title: {
+    fontFamily: Tokens.typography.fontFamily.display,
+    fontSize: Tokens.typography.fontSize.display,
+    color: Tokens.colors.textPrimary,
+    textTransform: 'uppercase',
+    lineHeight: Tokens.typography.fontSize.display * 0.9,
+    marginBottom: Tokens.spacing[16],
+  },
+  subtitle: {
+    fontFamily: Tokens.typography.fontFamily.regular,
+    fontSize: Tokens.typography.fontSize.body,
+    color: Tokens.colors.textMuted,
+    lineHeight: Tokens.typography.fontSize.body * 1.6,
+  },
+})

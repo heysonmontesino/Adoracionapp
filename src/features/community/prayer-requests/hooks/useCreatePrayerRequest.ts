@@ -3,9 +3,9 @@ import type { UserRole } from '../../../auth/types'
 import { createPrayerRequest } from '../repository'
 import type { CreatePrayerRequestInput } from '../types'
 
-interface CreateVariables {
+export interface CreatePrayerRequestVariables {
   userId: string
-  displayName: string
+  displayName: string | null
   input: CreatePrayerRequestInput
   role: UserRole
 }
@@ -13,11 +13,26 @@ interface CreateVariables {
 export function useCreatePrayerRequest() {
   const queryClient = useQueryClient()
 
-  return useMutation({
-    mutationFn: ({ userId, displayName, input }: CreateVariables) =>
-      createPrayerRequest(userId, displayName, input),
+  return useMutation<string, Error, CreatePrayerRequestVariables>({
+    mutationFn: (vars: CreatePrayerRequestVariables) => {
+      console.log('[PrayerCreate/Hook] mutation start', {
+        userId: vars.userId,
+        type: vars.input.type,
+        role: vars.role,
+      })
+      return createPrayerRequest(vars.userId, vars.displayName, vars.input)
+    },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['prayer-requests', variables.role] })
+      console.log('[PrayerCreate/Hook] mutation success — invalidating queries')
+      queryClient.invalidateQueries({
+        queryKey: ['prayer-requests', variables.input.type, variables.role],
+      })
+      queryClient.invalidateQueries({
+        queryKey: ['prayer-requests'],
+      })
+    },
+    onError: (error: Error) => {
+      console.error('[PrayerCreate/Hook] mutation error:', error.message)
     },
   })
 }

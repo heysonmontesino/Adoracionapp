@@ -23,7 +23,7 @@ const mockUser = {
   lastLoginAt: makeTimestamp(1_700_000_001),
   onboardingCompleted: false,
   selectedChurchCampus: null,
-  character: { gender: 'boy' as const, stage: 1 as const, assetKey: null },
+  character: { gender: 'male' as const, stage: 'baby' as const, assetKey: null },
   progress: {
     xp: 0, level: 1 as const, streakDays: 0, longestStreak: 0,
     lastActivityDate: '2026-04-07', totalPrayersOffered: 0,

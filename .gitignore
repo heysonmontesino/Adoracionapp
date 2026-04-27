@@ -31,6 +31,7 @@ yarn-error.*
 *.pem
 
 # local env files
+.env
 .env*.local
 
 # typescript
@@ -44,3 +45,8 @@ yarn-error.*
 .env.local
 GoogleService-Info.plist
 google-services.json
+
+# Build and scratch folders
+build/
+temp_screenshots/
+scratch/

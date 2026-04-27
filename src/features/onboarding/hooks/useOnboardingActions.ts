@@ -32,7 +32,8 @@ export function useOnboardingActions() {
       await completeOnboarding(user.uid, gender)
       applyCompletedOnboarding(gender)
       return true
-    } catch {
+    } catch (error: unknown) {
+      console.error('[completeOnboarding] FAILED — uid:', user.uid, 'gender:', gender, error)
       return false
     } finally {
       setIsSubmitting(false)

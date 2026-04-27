@@ -14,8 +14,8 @@ export function usePrayForRequest() {
   return useMutation({
     mutationFn: ({ requestId, userId }: PrayVariables) =>
       prayForRequest(requestId, userId),
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['prayer-requests', variables.role] })
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['prayer-requests'] })
     },
   })
 }

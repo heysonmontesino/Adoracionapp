@@ -1,0 +1,17 @@
+diff --git a/node_modules/react-native-screens/ios/helpers/image/RNSImageLoadingHelper.mm b/node_modules/react-native-screens/ios/helpers/image/RNSImageLoadingHelper.mm
+index 64beb49..6f4a10f 100644
+--- a/node_modules/react-native-screens/ios/helpers/image/RNSImageLoadingHelper.mm
++++ b/node_modules/react-native-screens/ios/helpers/image/RNSImageLoadingHelper.mm
+@@ -38,6 +38,12 @@
+   RCTAssert(imageSource != nil, @"[RNScreens] imageSource must not be nil");
+   RCTAssert(imageLoader != nil, @"[RNScreens] imageLoader must not be nil");
+ 
++  // Guard against null URL to prevent RCTImageLoader noise in dev mode.
++  if (imageSource.request.URL == nil) {
++    imageLoadingCompletionBlock(nil);
++    return;
++  }
++
+   [imageLoader loadImageWithURLRequest:imageSource.request
+       size:imageSource.size
+       scale:imageSource.scale

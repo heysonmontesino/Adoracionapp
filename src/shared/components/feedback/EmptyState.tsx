@@ -1,6 +1,7 @@
 import { ReactNode } from 'react'
-import { Text, View } from 'react-native'
-import { Button } from '../ui/Button'
+import { Text, View, StyleSheet } from 'react-native'
+import { AppButton } from '../ui/AppButton'
+import { Tokens } from '../../constants/tokens'
 
 interface EmptyStateProps {
   title?: string
@@ -18,19 +19,51 @@ export function EmptyState({
   children,
 }: EmptyStateProps) {
   return (
-    <View className="rounded-3xl bg-surface-container-low px-6 py-8">
-      <Text className="font-humane text-4xl uppercase text-on-surface leading-none mb-3">
+    <View style={styles.container}>
+      <Text style={styles.title}>
         {title}
       </Text>
-      <Text className="font-jakarta-regular text-base leading-7 text-on-surface/70">
+      <Text style={styles.message}>
         {message}
       </Text>
-      {children ? <View className="mt-5">{children}</View> : null}
+      {children ? <View style={styles.children}>{children}</View> : null}
       {actionLabel && onAction ? (
-        <View className="mt-6">
-          <Button label={actionLabel} onPress={onAction} variant="secondary" />
+        <View style={styles.action}>
+          <AppButton label={actionLabel} onPress={onAction} variant="primary" />
         </View>
       ) : null}
     </View>
   )
 }
+
+const styles = StyleSheet.create({
+  container: {
+    backgroundColor: Tokens.colors.surfaceLow,
+    borderRadius: Tokens.radius.cardLarge,
+    paddingHorizontal: Tokens.spacing[24],
+    paddingVertical: Tokens.spacing[32],
+    borderWidth: 1,
+    borderColor: 'rgba(229, 223, 253, 0.08)',
+  },
+  title: {
+    fontFamily: Tokens.typography.fontFamily.display,
+    fontSize: Tokens.typography.fontSize.display - 32, // Approx 40
+    color: Tokens.colors.textPrimary,
+    textTransform: 'uppercase',
+    letterSpacing: 2,
+    lineHeight: 40,
+    marginBottom: Tokens.spacing[12],
+  },
+  message: {
+    fontFamily: Tokens.typography.fontFamily.regular,
+    fontSize: Tokens.typography.fontSize.h3,
+    color: Tokens.colors.textMuted,
+    lineHeight: 28,
+  },
+  children: {
+    marginTop: Tokens.spacing[24],
+  },
+  action: {
+    marginTop: Tokens.spacing[24],
+  },
+})

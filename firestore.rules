@@ -45,9 +45,10 @@ service cloud.firestore {
 
     function validCharacter(character) {
       return character is map
-        && character.gender in ['boy', 'girl']
-        && character.stage in [1, 2, 3, 4, 5]
-        && (character.assetKey == null || character.assetKey is string);
+        && (character.gender == null || character.gender in ['male', 'female', 'boy', 'girl'])
+        && (character.stage == null || character.stage in ['baby', 'child', 'young', 'adult', 'master'] || character.stage is int)
+        && (character.get('stageOverride', null) == null || character.get('stageOverride', null) in ['baby', 'child', 'young', 'adult', 'master'] || character.get('stageOverride', null) is int)
+        && (character.get('assetKey', null) == null || character.get('assetKey', null) is string);
     }
 
     function validProgress(progress) {
@@ -59,7 +60,7 @@ service cloud.firestore {
         && progress.streakDays >= 0
         && progress.longestStreak is int
         && progress.longestStreak >= 0
-        && progress.lastActivityDate is string
+        && (progress.lastActivityDate == null || progress.lastActivityDate is string)
         && progress.totalPrayersOffered is int
         && progress.totalPrayersOffered >= 0;
     }
@@ -112,7 +113,6 @@ service cloud.firestore {
         && request.resource.data.lastLoginAt is timestamp
         && request.resource.data.onboardingCompleted is bool
         && validCharacter(request.resource.data.character)
-        && validProgress(request.resource.data.progress)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'displayName',
           'photoURL',
@@ -120,8 +120,20 @@ service cloud.firestore {
           'onboardingCompleted',
           'selectedChurchCampus',
           'character',
-          'progress',
         ]);
+    }
+
+    // Progress update from XP transactions (atomic, server-driven).
+    // Only the progress field is allowed to change; all identity/role fields must stay the same.
+    function validProgressUpdate(userId) {
+      return self(userId)
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.email == resource.data.email
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.status == resource.data.status
+        && request.resource.data.createdAt == resource.data.createdAt
+        && validProgress(request.resource.data.progress)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['progress']);
     }
 
     function validHabitCreate() {
@@ -181,64 +193,58 @@ service cloud.firestore {
           'onboarding_complete',
           'challenge_completed',
         ]
-        && request.resource.data.xpAwarded in [25, 50, 75, 100, 150, 200]
+        // XP whitelist covers both habit XP (25,50,75,100,150,200) and
+        // challenge XP (5,10,30,35,60) plus negative values for un-toggles.
+        && (request.resource.data.xpAwarded is int)
+        && (request.resource.data.xpAwarded >= -200 && request.resource.data.xpAwarded <= 200)
         && (request.resource.data.sourceId == null || request.resource.data.sourceId is string)
         && request.resource.data.dateKey is string
         && request.resource.data.metadata is map
         && request.resource.data.createdAt is timestamp;
     }
 
-    function canReadPrayerRequest(requestId) {
-      return exists(/databases/$(database)/documents/prayer-requests/$(requestId))
-        && isActiveUser()
-        && (
-          get(/databases/$(database)/documents/prayer-requests/$(requestId)).data.visibility == 'public'
-          || isLeaderOrAbove()
-        );
-    }
-
-    function isPrayerRequestOwner(requestId) {
-      return signedIn()
-        && exists(/databases/$(database)/documents/prayer-requests/$(requestId))
-        && get(/databases/$(database)/documents/prayer-requests/$(requestId)).data.userId == request.auth.uid;
-    }
-
-    function validPrayerRequestCreate() {
+    function validChallengeCompletionCreate() {
       return request.resource.data.keys().hasOnly([
-          'userId',
-          'displayName',
-          'anonymous',
-          'title',
-          'body',
-          'visibility',
-          'prayerCount',
-          'status',
-          'createdAt',
-          'updatedAt',
-          'answeredAt',
+          'challengeId',
+          'frequency',
+          'completedAt',
+          'xpAwarded',
         ])
-        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.challengeId is string
+        && request.resource.data.frequency in ['daily', 'weekly', 'monthly']
+        && request.resource.data.completedAt is timestamp
+        && request.resource.data.xpAwarded is int
+        && request.resource.data.xpAwarded >= 0
+        && request.resource.data.xpAwarded <= 200;
+    }
+
+    function validPrayerRequestCreate(data) {
+      // Contrato real enviado por repository.ts:
+      // { userId, author: {displayName, isAnonymous}, title, body,
+      //   type, category, prayerCount, status, createdAt, updatedAt, answeredAt }
+      return data.userId == request.auth.uid
+        && data.author is map
         && (
-          (request.resource.data.anonymous == true && request.resource.data.displayName == null)
-          || (request.resource.data.anonymous == false && request.resource.data.displayName is string)
+          (data.author.get('isAnonymous', false) == true && (data.author.get('displayName', null) == null || data.author.get('displayName', '') == ''))
+          || (data.author.get('isAnonymous', false) == false && data.author.get('displayName', '') is string)
         )
-        && (request.resource.data.title == null || request.resource.data.title is string)
-        && request.resource.data.body is string
-        && request.resource.data.body.size() >= 10
-        && request.resource.data.body.size() <= 1000
-        && request.resource.data.visibility in ['public', 'leaders_only']
-        && (request.resource.data.visibility == 'public' || isLeaderOrAbove())
-        && request.resource.data.prayerCount == 0
-        && request.resource.data.status == 'active'
-        && request.resource.data.createdAt is timestamp
-        && request.resource.data.updatedAt is timestamp
-        && request.resource.data.answeredAt == null;
+        && (data.get('title', null) == null || data.title is string)
+        && data.body is string
+        && data.body.size() >= 10
+        && data.body.size() <= 1000
+        && data.type in ['community', 'pastoral']
+        && (data.type == 'community' || data.type == 'pastoral') // Members can now create pastoral requests
+        && data.prayerCount == 0
+        && data.status == 'active'
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp
+        && data.get('answeredAt', null) == null;
     }
 
     function canIncrementPrayerCount(requestId) {
       return isActiveUser()
         && resource.data.status == 'active'
-        && exists(/databases/$(database)/documents/prayer-requests/$(requestId)/prayers/$(request.auth.uid))
+        && getAfter(/databases/$(database)/documents/prayer-requests/$(requestId)/prayers/$(request.auth.uid)).data != null
         && request.resource.data.prayerCount is int
         && request.resource.data.prayerCount == resource.data.prayerCount + 1
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['prayerCount']);
@@ -283,8 +289,20 @@ service cloud.firestore {
       allow get: if self(userId) || isPastorOrAdmin();
       allow list: if false;
       allow create: if validUserCreate(userId);
-      allow update: if validSelfUserUpdate(userId) || isAdmin();
+      // validSelfUserUpdate: profile fields (displayName, photo, etc.)
+      // validProgressUpdate: XP/level changes from atomic transactions
+      allow update: if validSelfUserUpdate(userId) || validProgressUpdate(userId) || isAdmin();
       allow delete: if false;
+    }
+
+    match /users/{userId}/challenge-completions/{completionKey} {
+      allow get, list: if self(userId) && isActiveUser();
+      // Create: marking a challenge as done
+      allow create: if self(userId) && isActiveUser() && validChallengeCompletionCreate();
+      // Delete: un-toggling a challenge
+      allow delete: if self(userId) && isActiveUser();
+      // No update: completions are immutable; un-toggle = delete + re-create
+      allow update: if false;
     }
 
     match /users/{userId}/habits/{habitId} {
@@ -301,7 +319,8 @@ service cloud.firestore {
     }
 
     match /xp-events/{eventId} {
-      allow get, list: if (isActiveUser() && resource.data.userId == request.auth.uid)
+      allow get: if isActiveUser() && (resource == null || resource.data.userId == request.auth.uid);
+      allow list: if (isActiveUser() && resource.data.userId == request.auth.uid)
                         || isAdmin();
       allow create: if isActiveUser() && validXPEventCreate();
       allow update, delete: if false;
@@ -329,21 +348,69 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
-    match /prayer-requests/{requestId} {
-      allow get, list: if isActiveUser()
-                        && (resource.data.visibility == 'public' || isLeaderOrAbove());
-      allow create: if isActiveUser() && validPrayerRequestCreate();
-      allow update: if canIncrementPrayerCount(requestId) || isAdmin();
-      allow delete: if isAdmin();
+    match /youtube_videos/{videoId} {
+      allow get, list: if isActiveUser();
+      allow create, update, delete: if false;
     }
 
-    match /prayer-requests/{requestId}/prayers/{userId} {
-      allow get: if (self(userId) && isActiveUser())
-                  || isPrayerRequestOwner(requestId)
-                  || isLeaderOrAbove();
-      allow list: if false;
-      allow create: if self(userId) && canReadPrayerRequest(requestId);
-      allow update, delete: if false;
+    match /sermon_series/{seriesId} {
+      allow get, list: if isActiveUser();
+      allow create, update, delete: if false;
+    }
+
+    function canReadPrayerRequest(data) {
+      return isActiveUser()
+        && (
+          data.type == 'community'
+          || data.userId == request.auth.uid
+          || isLeaderOrAbove()
+        );
+    }
+
+    function isPrayerRequestOwner(requestId) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/prayer-requests/$(requestId))
+        && get(/databases/$(database)/documents/prayer-requests/$(requestId)).data.userId == request.auth.uid;
+    }
+
+    // --- Production Rules for Prayer Requests ---
+    match /prayer-requests/{requestId} {
+      allow list, get: if canReadPrayerRequest(resource.data);
+      
+      allow create: if isActiveUser() && validPrayerRequestCreate(request.resource.data);
+
+      allow update: if isActiveUser() && (
+        // Case 1: External Prayer (anyone except the author)
+        (
+          canIncrementPrayerCount(requestId) 
+          && !isPrayerRequestOwner(requestId)
+        ) ||
+        // Case 2: Author Lifecycle (Mark as answered or archive - cannot edit title/body)
+        (
+          isPrayerRequestOwner(requestId)
+          && request.resource.data.status in ['answered', 'archived']
+          && request.resource.data.title == resource.data.title
+          && request.resource.data.body == resource.data.body
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'answeredAt', 'updatedAt'])
+        ) ||
+        // Case 3: Moderation (Leaders and Admins)
+        (
+          isLeaderOrAbove()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'moderatedAt', 'category', 'updatedAt'])
+        ) ||
+        // Case 4: Author edits content of their own active request
+        (
+          isPrayerRequestOwner(requestId)
+          && resource.data.status == 'active'
+          && request.resource.data.status == 'active'
+          && request.resource.data.prayerCount == resource.data.prayerCount
+          && request.resource.data.type == resource.data.type
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['title', 'body', 'category', 'author', 'updatedAt'])
+        )
+      );
+
+      allow delete: if isAdmin();
     }
 
     match /channels/{channelId} {

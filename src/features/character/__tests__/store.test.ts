@@ -3,7 +3,7 @@ import { useCharacterStore } from '../store'
 describe('characterStore', () => {
   beforeEach(() => {
     useCharacterStore.setState({
-      gender: 'boy',
+      gender: 'male',
       currentAnimation: 'idle',
       mode: 'lottie',
     })
@@ -11,14 +11,14 @@ describe('characterStore', () => {
 
   it('starts with default values', () => {
     const state = useCharacterStore.getState()
-    expect(state.gender).toBe('boy')
+    expect(state.gender).toBe('male')
     expect(state.currentAnimation).toBe('idle')
     expect(state.mode).toBe('lottie')
   })
 
   it('setGender updates gender', () => {
-    useCharacterStore.getState().setGender('girl')
-    expect(useCharacterStore.getState().gender).toBe('girl')
+    useCharacterStore.getState().setGender('female')
+    expect(useCharacterStore.getState().gender).toBe('female')
   })
 
   it('setAnimation updates currentAnimation', () => {

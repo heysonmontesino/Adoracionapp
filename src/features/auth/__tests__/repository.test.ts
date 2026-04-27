@@ -15,6 +15,8 @@ const mockFirebaseUser = {
   email: 'pastor@adoracion.com',
   displayName: 'Pastor David',
   photoURL: null,
+  providerData: [{ providerId: 'google.com' }],
+  isAnonymous: false,
 } as any
 
 const makeTimestamp = (seconds: number): FirestoreTimestampValue => ({
@@ -133,5 +135,26 @@ describe('getOrCreateUserDoc', () => {
     expect(result.progress.level).toBe(1)
     expect(result.character.stage).toBe(1)
     expect(result.createdAt).toBe(baseTimestamp)
+  })
+
+  it('recovers when a concurrent bootstrap creates the user doc first', async () => {
+    jest
+      .spyOn(firestoreService, 'getDocument')
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(mockExistingAppUser)
+    jest
+      .spyOn(firestoreService, 'setDocument')
+      .mockRejectedValue(Object.assign(new Error('Missing or insufficient permissions.'), {
+        code: 'permission-denied',
+      }))
+
+    const result = await getOrCreateUserDoc(mockFirebaseUser)
+
+    expect(firestoreService.setDocument).toHaveBeenCalledWith(
+      'users/user-1',
+      expect.objectContaining({ uid: 'user-1' }),
+    )
+    expect(firestoreService.getDocument).toHaveBeenCalledTimes(2)
+    expect(result).toBe(mockExistingAppUser)
   })
 })

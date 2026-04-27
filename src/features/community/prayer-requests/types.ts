@@ -1,26 +1,39 @@
 import { FirestoreTimestampValue } from '../../../shared/types/firestore'
 
-export type PrayerRequestVisibility = 'public' | 'leaders_only'
-export type PrayerRequestStatus = 'active' | 'answered' | 'archived'
+export type PrayerRequestType = 'community' | 'pastoral'
+export type PrayerRequestCategory = 'general' | 'salud' | 'familia' | 'finanzas' | 'otros'
+export type PrayerRequestStatus = 'active' | 'answered' | 'archived' | 'flagged' | 'hidden'
 
 export interface PrayerRequest {
   id: string
   userId: string
-  displayName: string | null
-  anonymous: boolean
+  author: {
+    displayName: string | null
+    isAnonymous: boolean
+  }
   title: string | null
   body: string
-  visibility: PrayerRequestVisibility
-  prayerCount: number
+  type: PrayerRequestType
+  category: PrayerRequestCategory
   status: PrayerRequestStatus
+  prayerCount: number
   createdAt: FirestoreTimestampValue
   updatedAt: FirestoreTimestampValue
   answeredAt: FirestoreTimestampValue | null
+  moderatedAt?: FirestoreTimestampValue | null
 }
 
 export interface CreatePrayerRequestInput {
-  body: string
   title?: string
+  body: string
+  type: PrayerRequestType
+  category: PrayerRequestCategory
   anonymous: boolean
-  visibility: PrayerRequestVisibility
+}
+
+export interface UpdatePrayerRequestInput {
+  title: string | null
+  body: string
+  category: PrayerRequestCategory
+  anonymous: boolean
 }

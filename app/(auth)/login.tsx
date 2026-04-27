@@ -2,17 +2,20 @@ import { useState } from 'react'
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
+  StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
 } from 'react-native'
 import { useRouter } from 'expo-router'
+import { AppHeader } from '../../src/shared/components/ui/AppHeader'
+import { AppButton } from '../../src/shared/components/ui/AppButton'
+import { AppInput } from '../../src/shared/components/ui/AppInput'
 import { Screen } from '../../src/shared/components/layout/Screen'
-import { Button } from '../../src/shared/components/ui/Button'
 import { useToast } from '../../src/shared/components/feedback/Toast'
 import { useAuthActions } from '../../src/features/auth/hooks/useAuthActions'
-import { Colors } from '../../src/shared/constants/colors'
+import { Tokens } from '../../src/shared/constants/tokens'
 
 export default function LoginScreen() {
   const router = useRouter()
@@ -28,7 +31,6 @@ export default function LoginScreen() {
 
   async function handleGoogleSignIn() {
     const success = await authenticateWithGoogle()
-
     if (!success) {
       showToast({
         message: 'No se pudo iniciar sesión con Google. Intenta de nuevo.',
@@ -58,69 +60,107 @@ export default function LoginScreen() {
 
   return (
     <Screen>
-      <KeyboardAvoidingView
-        className="flex-1"
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      <KeyboardAvoidingView 
+        style={{ flex: 1 }} 
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <View className="flex-1 justify-center px-6">
-          <Text className="font-humane text-6xl text-on-surface uppercase leading-none mb-2">
-            BIENVENIDO{'\n'}A CASA
-          </Text>
-          <Text className="font-jakarta-regular text-base text-on-surface/60 mb-10">
-            Inicia sesión para continuar
-          </Text>
-
-          <TextInput
-            className="bg-surface-container-low rounded-xl px-4 py-3 text-on-surface font-jakarta-regular mb-3"
-            placeholder="Correo electrónico"
-            placeholderTextColor={Colors.onSurface60}
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            textContentType="emailAddress"
-          />
-          <TextInput
-            className="bg-surface-container-low rounded-xl px-4 py-3 text-on-surface font-jakarta-regular mb-6"
-            placeholder="Contraseña"
-            placeholderTextColor={Colors.onSurface60}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            textContentType="password"
+        <ScrollView 
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          <AppHeader 
+            variant="hero" 
+            title={"BIENVENIDO\nA CASA"} 
+            subtitle="Inicia sesión para continuar" 
           />
 
-          <Button
-            label="Iniciar sesión"
-            onPress={handleEmailSignIn}
-            isLoading={isSubmitting}
-            style={{ marginBottom: 12 }}
-          />
-          <Button
-            label="Continuar con Google"
-            onPress={handleGoogleSignIn}
-            variant="secondary"
-            disabled={!isGoogleSignInAvailable}
-            isLoading={isSubmitting}
-          />
+          <View style={styles.formContainer}>
+            <AppInput
+              placeholder="Correo electrónico"
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              textContentType="emailAddress"
+            />
+            <AppInput
+              placeholder="Contraseña"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              textContentType="password"
+            />
 
-          {!isGoogleSignInAvailable && (
-            <Text className="font-jakarta-regular text-sm text-on-surface/60 mt-3">
-              Google Sign-In requiere configurar el Web Client ID en el entorno local.
-            </Text>
-          )}
+            <AppButton
+              label="Iniciar sesión"
+              onPress={handleEmailSignIn}
+              isLoading={isSubmitting}
+              style={styles.primaryButton}
+            />
+            <AppButton
+              label="Continuar con Google"
+              onPress={handleGoogleSignIn}
+              variant="secondary"
+              disabled={!isGoogleSignInAvailable}
+              isLoading={isSubmitting}
+              style={styles.secondaryButton}
+            />
 
-          <TouchableOpacity
-            className="items-center mt-6"
-            onPress={() => router.push('/(auth)/register')}
-          >
-            <Text className="font-jakarta-regular text-sm text-on-surface/60">
-              ¿No tienes cuenta?{' '}
-              <Text className="text-primary font-jakarta-medium">Regístrate</Text>
-            </Text>
-          </TouchableOpacity>
-        </View>
+            {!isGoogleSignInAvailable && (
+              <Text style={styles.helperText}>
+                Google Sign-In requiere configurar el Web Client ID en el entorno local.
+              </Text>
+            )}
+
+            <TouchableOpacity
+              style={styles.linkButton}
+              onPress={() => router.push('/(auth)/register')}
+            >
+              <Text style={styles.linkText}>
+                ¿No tienes cuenta? <Text style={styles.linkAccent}>Regístrate</Text>
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </Screen>
   )
 }
+
+const styles = StyleSheet.create({
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingBottom: Tokens.spacing[32],
+  },
+  formContainer: {
+    paddingHorizontal: Tokens.spacing.screenPadding,
+  },
+  primaryButton: {
+    marginTop: Tokens.spacing[8],
+    marginBottom: Tokens.spacing[12],
+  },
+  secondaryButton: {
+    marginBottom: Tokens.spacing[12],
+  },
+  helperText: {
+    color: Tokens.colors.textMuted,
+    fontFamily: Tokens.typography.fontFamily.regular,
+    fontSize: Tokens.typography.fontSize.caption,
+    textAlign: 'center',
+    marginTop: Tokens.spacing[8],
+  },
+  linkButton: {
+    alignItems: 'center',
+    marginTop: Tokens.spacing[24],
+  },
+  linkText: {
+    color: Tokens.colors.textMuted,
+    fontFamily: Tokens.typography.fontFamily.regular,
+    fontSize: Tokens.typography.fontSize.label,
+  },
+  linkAccent: {
+    color: Tokens.colors.primary,
+    fontFamily: Tokens.typography.fontFamily.medium,
+  },
+})

@@ -11,11 +11,11 @@ describe('completeOnboarding', () => {
   it('updates the user document with onboarding completion and gender', async () => {
     jest.spyOn(firestoreService, 'updateDocument').mockResolvedValue(undefined)
 
-    await completeOnboarding('user-1', 'girl')
+    await completeOnboarding('user-1', 'female')
 
     expect(firestoreService.updateDocument).toHaveBeenCalledWith('users/user-1', {
       onboardingCompleted: true,
-      'character.gender': 'girl',
+      'character.gender': 'female',
     })
   })
 })

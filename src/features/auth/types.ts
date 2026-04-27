@@ -2,11 +2,14 @@ export type UserRole = 'member' | 'leader' | 'pastor' | 'admin'
 export type UserStatus = 'active' | 'blocked'
 
 import { FirestoreTimestampValue } from '../../shared/types/firestore'
+import { CharacterGender, SpiritualStage } from '../character/types'
 
 export interface CharacterProfile {
-  gender: 'boy' | 'girl'
-  stage: 1 | 2 | 3 | 4 | 5
+  gender: CharacterGender
+  stage: SpiritualStage
   assetKey: string | null
+  stageOverride?: SpiritualStage
+  genderOverride?: CharacterGender
 }
 
 export interface SpiritualProgress {

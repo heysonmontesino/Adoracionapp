@@ -1,4 +1,15 @@
 import { FirestoreTimestampValue } from '../../shared/types/firestore'
+import { CharacterGender, SpiritualStage } from '../character/types'
+export type {
+  CharacterStage,
+  ChallengeDefinition,
+  ChallengeFrequency,
+  InternalStageName,
+  StageDefinition,
+  StreakBonus,
+  UserProgressSnapshot,
+  VisibleStageName,
+} from './types/index'
 
 // ─── XP Events (append-only log) ────────────────────────────────────────────
 
@@ -48,6 +59,7 @@ export interface CreateHabitInput {
 
 export interface LevelConfig {
   level: 1 | 2 | 3 | 4 | 5
+  key: SpiritualStage
   name: string
   minXP: number
   maxXP: number
@@ -75,4 +87,6 @@ export interface ProgressSnapshot {
   longestStreak: number
   lastActivityDate: string
   totalPrayersOffered: number
+  stageOverride?: SpiritualStage | number
+  genderOverride?: CharacterGender
 }

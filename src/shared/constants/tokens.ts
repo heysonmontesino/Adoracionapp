@@ -1,0 +1,75 @@
+export const Tokens = {
+  colors: {
+    background: '#131026',
+    primary: '#0fdfdf',
+    primaryMuted: 'rgba(15, 223, 223, 0.15)',
+    secondary: '#1A1A24',
+    textPrimary: '#FFFFFF',
+    textSecondary: 'rgba(255, 255, 255, 0.7)',
+    textMuted: 'rgba(255, 255, 255, 0.45)',
+    surfaceLow: 'rgba(255, 255, 255, 0.03)',
+    surface: 'rgba(255, 255, 255, 0.06)',
+    surfaceHigh: 'rgba(255, 255, 255, 0.1)',
+    outline: 'rgba(255, 255, 255, 0.08)',
+    outlineVariant: 'rgba(255, 255, 255, 0.05)',
+    error: '#FF4D4D',
+    glow: 'rgba(15, 223, 223, 0.15)',
+    spiritual: {
+      lavender: '#BDB2FF',
+      gold: '#FEE440',
+      sky: '#38bdf8',
+    }
+  },
+  typography: {
+    fontFamily: {
+      display: 'HUMANE-Bold',
+      regular: 'Outfit-Regular',
+      medium: 'Outfit-Medium',
+      semiBold: 'Outfit-SemiBold',
+      bold: 'Outfit-Bold',
+    },
+    fontSize: {
+      display: 72,
+      h1: 28,
+      h2: 22,
+      h3: 18,
+      body: 16,
+      label: 14,
+      caption: 12,
+      micro: 10,
+    },
+    lineHeight: {
+      tight: 1.2,
+      normal: 1.5,
+      relaxed: 1.65,
+    }
+  },
+  spacing: {
+    4: 4,
+    8: 8,
+    12: 12,
+    16: 16,
+    24: 24,
+    32: 32,
+    48: 48,
+    64: 64,
+    // Semantic
+    screenPadding: 24,
+    sectionGap: 40,
+    cardPadding: 20,
+  },
+  sizing: {
+    buttonHeight: 56,
+    chipHeight: 36,
+    headerHeight: 64,
+  },
+  radius: {
+    small: 8,
+    medium: 12,
+    card: 16,
+    cardLarge: 24,
+    button: 16,
+    chip: 24,
+    full: 99,
+  },
+} as const;

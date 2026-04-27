@@ -40,9 +40,12 @@ export function useAuthActions() {
   async function authenticateWithGoogle(): Promise<boolean> {
     return runAuthAction(async () => {
       try {
-        const firebaseUser = await signInWithGoogle()
-        return syncAuthenticatedUser(firebaseUser)
-      } catch {
+        await signInWithGoogle()
+        // onAuthStateChanged in useAuthBootstrap is the single owner of
+        // creating/reading users/{uid}; doing it here too races new-user writes.
+        return true
+      } catch (error) {
+        console.error('[authenticateWithGoogle] Hook failure:', error)
         return false
       }
     })

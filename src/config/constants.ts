@@ -1,9 +1,12 @@
+// Thresholds aligned with STAGES in src/features/progress/constants/stages.ts.
+// level.name matches stage.visibleName so Firestore-stored level is always
+// consistent with the UI display.
 export const LEVELS = [
-  { level: 1, name: 'Niño espiritual',        minXP: 0,    maxXP: 499    },
-  { level: 2, name: 'Adolescente espiritual', minXP: 500,  maxXP: 1499   },
-  { level: 3, name: 'Joven espiritual',       minXP: 1500, maxXP: 3499   },
-  { level: 4, name: 'Maduro espiritual',      minXP: 3500, maxXP: 6999   },
-  { level: 5, name: 'Mentor espiritual',      minXP: 7000, maxXP: Infinity },
+  { level: 1, key: 'baby',   name: 'Novato',      minXP: 0,    maxXP: 149      },
+  { level: 2, key: 'child',  name: 'Aprendiz',    minXP: 150,  maxXP: 399      },
+  { level: 3, key: 'young',  name: 'Servidor',    minXP: 400,  maxXP: 899      },
+  { level: 4, key: 'adult',  name: 'Discípulo',   minXP: 900,  maxXP: 1599     },
+  { level: 5, key: 'master', name: 'Líder',       minXP: 1600, maxXP: Infinity },
 ] as const
 
 export const XP_REWARDS = {

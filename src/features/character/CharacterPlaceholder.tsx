@@ -24,7 +24,7 @@ export function CharacterPlaceholder() {
   const gender = useCharacterStore((s) => s.gender)
   const animation = useCharacterStore((s) => s.currentAnimation)
 
-  const initial = gender === 'boy' ? 'H' : 'M'
+  const initial = gender === 'male' ? 'H' : 'M'
   const label = ANIMATION_LABELS[animation] ?? animation
 
   return (

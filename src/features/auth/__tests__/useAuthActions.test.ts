@@ -38,7 +38,7 @@ const mockUser: AppUser = {
   lastLoginAt: makeTimestamp(1_700_000_001),
   onboardingCompleted: false,
   selectedChurchCampus: null,
-  character: { gender: 'girl', stage: 1, assetKey: null },
+  character: { gender: 'female', stage: 'baby', assetKey: null },
   progress: {
     xp: 0,
     level: 1,
@@ -91,6 +91,23 @@ describe('useAuthActions', () => {
     })
 
     expect(repository.signOut).toHaveBeenCalledTimes(1)
+    expect(useAuthStore.getState().user).toBeNull()
+  })
+
+  it('lets auth bootstrap own user doc sync after Google sign-in', async () => {
+    const firebaseUser = { uid: 'google-user-1' } as never
+
+    ;(repository.signInWithGoogle as jest.Mock).mockResolvedValue(firebaseUser)
+
+    const { result } = renderHook(() => useAuthActions())
+
+    await act(async () => {
+      const response = await result.current.authenticateWithGoogle()
+      expect(response).toBe(true)
+    })
+
+    expect(repository.signInWithGoogle).toHaveBeenCalledTimes(1)
+    expect(repository.getOrCreateUserDoc).not.toHaveBeenCalled()
     expect(useAuthStore.getState().user).toBeNull()
   })
 })

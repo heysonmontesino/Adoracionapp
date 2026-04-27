@@ -24,6 +24,7 @@ export interface TransactionContext {
   get<T>(path: string): Promise<T | null>
   set<T extends DocumentData>(path: string, data: T): void
   update(path: string, data: Partial<DocumentData>): void
+  delete(path: string): void
 }
 
 /**
@@ -45,6 +46,9 @@ export async function executeTransaction<T>(
       },
       update: (path: string, data: Partial<DocumentData>): void => {
         transaction.update(doc(db, path), data)
+      },
+      delete: (path: string): void => {
+        transaction.delete(doc(db, path))
       },
     }
     return callback(ctx)

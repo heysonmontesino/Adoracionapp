@@ -11,7 +11,7 @@ interface CharacterState {
 }
 
 export const useCharacterStore = create<CharacterState>((set) => ({
-  gender: 'boy',
+  gender: 'male',
   currentAnimation: 'idle',
   mode: 'lottie',
   setGender: (gender) => set({ gender }),
