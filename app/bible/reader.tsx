@@ -255,6 +255,11 @@ export default function BibleReaderScreen() {
     const verseObj = content.verses.find(v => v.number === selectedVerse)
     if (!verseObj) return
 
+    if (__DEV__) {
+      console.log('[BibleReader] Opening AI insight sheet, type:', insightType)
+      console.log('[BibleReader] verse:', book.name, chapterNumber, selectedVerse)
+    }
+
     setIsModalVisible(false)
     setIsAiSheetVisible(true)
     setAiLoading(true)
@@ -280,6 +285,9 @@ export default function BibleReaderScreen() {
         insightType,
         language: 'es',
       })
+      if (__DEV__) {
+        console.log('[BibleReader] AI insight received:', insight.title, 'sections:', insight.sections.length)
+      }
       setAiInsight(insight)
     } catch (error) {
       console.error('[BibleReader] AI insight failed', error)

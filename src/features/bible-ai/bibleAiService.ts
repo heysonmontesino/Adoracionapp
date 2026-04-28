@@ -38,17 +38,31 @@ const USE_BACKEND = process.env.EXPO_PUBLIC_USE_BACKEND_BIBLE_AI === 'true'
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000'
 const BACKEND_TIMEOUT_MS = 12000 // 12 seconds
 
+if (__DEV__) {
+  console.log('[BibleAI] USE_BACKEND:', USE_BACKEND, 'BACKEND_URL:', BACKEND_URL)
+}
+
 async function fetchFromBackend(request: BibleAiRequest): Promise<BibleAiInsight> {
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), BACKEND_TIMEOUT_MS)
 
+  const url = `${BACKEND_URL}/v1/bible-ai/insight`
+  if (__DEV__) {
+    console.log('[BibleAI] → POST', url)
+    console.log('[BibleAI] payload:', JSON.stringify(request, null, 2))
+  }
+
   try {
-    const response = await fetch(`${BACKEND_URL}/v1/bible-ai/insight`, {
+    const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(request),
       signal: controller.signal,
     })
+
+    if (__DEV__) {
+      console.log('[BibleAI] ← status:', response.status)
+    }
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ message: 'Unknown error' }))
@@ -56,6 +70,9 @@ async function fetchFromBackend(request: BibleAiRequest): Promise<BibleAiInsight
     }
 
     const data = await response.json()
+    if (__DEV__) {
+      console.log('[BibleAI] ← sections:', data.sections?.length ?? 0, 'source:', data.source)
+    }
     return data as BibleAiInsight
   } catch (error: any) {
     if (error.name === 'AbortError') {
